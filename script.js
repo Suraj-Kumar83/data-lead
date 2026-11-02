@@ -1,6 +1,6 @@
 
 const GOOGLE_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbwOJUnW77Pz0xrzVvYAWiSMiReHs4r6cTvxpMTDRF225AZdo84K1OEDNF-x_mRUrnY/exec";
+  "https://script.google.com/macros/s/AKfycbw1SlNZlCKvQ8j4hE1HDD7xXXTbZRFraTcaztyqIha-dD95V3KR7okt889Z6eznSaQ/exec";
 
 const form = document.getElementById("propertyForm");
 const submitBtn = document.getElementById("submitBtn");

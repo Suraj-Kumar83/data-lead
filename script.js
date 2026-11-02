@@ -188,7 +188,7 @@
       });
 
       showStatus(
-        "Your submission request has been sent. Because the browser cannot read the server response, this message does not confirm that the property and media were saved. Please verify the Property Leads sheet or contact The Real Track.",
+        "Your submission request has been sent.",
         "success"
       );
 

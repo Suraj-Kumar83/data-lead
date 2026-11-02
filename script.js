@@ -12,9 +12,9 @@
   const propertyMedia = document.getElementById("propertyMedia");
   const mediaPreview = document.getElementById("mediaPreview");
 
-  const MAX_FILES = 5;
-  const MAX_FILE_SIZE = 5 * 1024 * 1024;
-  const MAX_TOTAL_SIZE = 10 * 1024 * 1024;
+  const MAX_FILES = 10;
+  const MAX_FILE_SIZE = 80 * 1024 * 1024;
+  const MAX_TOTAL_SIZE = 150 * 1024 * 1024;
 
   const ALLOWED_TYPES = [
     "image/jpeg",
@@ -47,7 +47,7 @@
 
   function validateFiles(files) {
     if (files.length > MAX_FILES) {
-      return "Please select a maximum of 5 files.";
+      return "Please select a maximum of 10 files.";
     }
 
     let totalSize = 0;
@@ -58,14 +58,14 @@
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        return "Each file must be 5 MB or smaller: " + file.name;
+        return "Each file must be 80 MB or smaller: " + file.name;
       }
 
       totalSize += file.size;
     }
 
     if (totalSize > MAX_TOTAL_SIZE) {
-      return "The combined size of all selected files must not exceed 10 MB.";
+      return "The combined size of all selected files must not exceed 150 MB.";
     }
 
     return "";

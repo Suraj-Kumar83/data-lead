@@ -1,126 +1,51 @@
- const GOOGLE_SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbwOJUnW77Pz0xrzVvYAWiSMiReHs4r6cTvxpMTDRF225AZdo84K1OEDNF-x_mRUrnY/exec";
 
-  const form = document.getElementById("propertyForm");
-  const submitBtn = document.getElementById("submitBtn");
-  const statusBox = document.getElementById("status");
+const GOOGLE_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbwOJUnW77Pz0xrzVvYAWiSMiReHs4r6cTvxpMTDRF225AZdo84K1OEDNF-x_mRUrnY/exec";
 
-  const listingType = document.getElementById("listingType");
-  const priceLabel = document.getElementById("priceLabel");
-  const priceHelp = document.getElementById("priceHelp");
+const form = document.getElementById("propertyForm");
+const submitBtn = document.getElementById("submitBtn");
+const statusBox = document.getElementById("status");
 
-  const propertyMedia = document.getElementById("propertyMedia");
-  const mediaPreview = document.getElementById("mediaPreview");
+const listingType = document.getElementById("listingType");
+const priceLabel = document.getElementById("priceLabel");
+const priceHelp = document.getElementById("priceHelp");
 
-  const MAX_FILES = 10;
-  const MAX_FILE_SIZE = 80 * 1024 * 1024;
-  const MAX_TOTAL_SIZE = 150 * 1024 * 1024;
+// Update the footer year.
+const yearElement = document.getElementById("year");
 
-  const ALLOWED_TYPES = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/gif",
-    "video/mp4",
-    "video/quicktime",
-    "video/webm"
-  ];
+if (yearElement) {
+  yearElement.textContent = new Date().getFullYear();
+}
 
-  document.getElementById("year").textContent =
-    new Date().getFullYear();
+// Update the price label depending on listing type.
+function updatePriceLabel() {
+  if (!listingType || !priceLabel || !priceHelp) return;
 
-  listingType.addEventListener("change", function () {
-    if (this.value === "Rent") {
-      priceLabel.textContent = "Monthly Rent (₹)";
-      priceHelp.textContent = "Enter the monthly rent in rupees.";
-    } else {
-      priceLabel.textContent = "Expected Sale Price (₹)";
-      priceHelp.textContent = "Enter the total expected sale price.";
-    }
-  });
-
-  function showStatus(message, type) {
-    statusBox.textContent = message;
-    statusBox.className = type;
-    statusBox.style.display = "block";
+  if (listingType.value === "Rent") {
+    priceLabel.textContent = "Monthly Rent (₹)";
+    priceHelp.textContent = "Enter the monthly rent in rupees.";
+  } else {
+    priceLabel.textContent = "Expected Sale Price (₹)";
+    priceHelp.textContent = "Enter the total expected sale price.";
   }
+}
 
-  function validateFiles(files) {
-    if (files.length > MAX_FILES) {
-      return "Please select a maximum of 10 files.";
-    }
+if (listingType) {
+  listingType.addEventListener("change", updatePriceLabel);
+  updatePriceLabel();
+}
 
-    let totalSize = 0;
+// Display success or error messages.
+function showStatus(message, type) {
+  if (!statusBox) return;
 
-    for (const file of files) {
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        return "Unsupported file type: " + file.name;
-      }
+  statusBox.textContent = message;
+  statusBox.className = type;
+  statusBox.style.display = "block";
+}
 
-      if (file.size > MAX_FILE_SIZE) {
-        return "Each file must be 80 MB or smaller: " + file.name;
-      }
-
-      totalSize += file.size;
-    }
-
-    if (totalSize > MAX_TOTAL_SIZE) {
-      return "The combined size of all selected files must not exceed 150 MB.";
-    }
-
-    return "";
-  }
-
-  function readFileAsBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.onload = function () {
-        const result = String(reader.result || "");
-        const commaIndex = result.indexOf(",");
-
-        if (commaIndex === -1) {
-          reject(new Error("Could not read " + file.name));
-          return;
-        }
-
-        resolve(result.substring(commaIndex + 1));
-      };
-
-      reader.onerror = function () {
-        reject(new Error("Could not read " + file.name));
-      };
-
-      reader.readAsDataURL(file);
-    });
-  }
-
-  propertyMedia.addEventListener("change", function () {
-    mediaPreview.replaceChildren();
-
-    const files = Array.from(this.files);
-    const error = validateFiles(files);
-
-    if (error) {
-      alert(error);
-      this.value = "";
-      return;
-    }
-
-    if (!files.length) return;
-
-    const list = document.createElement("ul");
-
-    files.forEach(file => {
-      const item = document.createElement("li");
-      item.textContent =
-        file.name + " (" + (file.size / 1048576).toFixed(2) + " MB)";
-      list.appendChild(item);
-    });
-
-    mediaPreview.appendChild(list);
-  });
-
+// Submit property details to Google Apps Script.
+if (form) {
   form.addEventListener("submit", async function (event) {
     event.preventDefault();
 
@@ -129,84 +54,72 @@
         "https://script.google.com/macros/s/"
       )
     ) {
-      showStatus("Google Apps Script is not configured.", "error");
+      showStatus(
+        "Google Apps Script is not configured.",
+        "error"
+      );
       return;
     }
 
+    // Validate required HTML form fields.
     if (!form.reportValidity()) return;
 
-    const files = propertyMedia
-      ? Array.from(propertyMedia.files)
-      : [];
-
-    const fileError = validateFiles(files);
-
-    if (fileError) {
-      showStatus(fileError, "error");
-      return;
-    }
-
     submitBtn.disabled = true;
-    submitBtn.textContent = "Preparing submission...";
-    statusBox.style.display = "none";
+    submitBtn.textContent = "Submitting property...";
+    
+    if (statusBox) {
+      statusBox.style.display = "none";
+    }
 
     try {
       const formData = new FormData(form);
       const body = new URLSearchParams();
 
-      // Send ordinary form fields, excluding the binary file objects.
+      // Send only text-based property details.
+      // Ignore file inputs and other non-string values.
       for (const [key, value] of formData.entries()) {
-        if (key === "propertyMedia") continue;
+        if (value instanceof File) continue;
 
-        if (typeof value === "string") {
-          body.append(key, value);
-        }
+        body.append(key, value);
       }
 
-      // Encode each selected file for the Apps Script endpoint.
-      body.append("mediaCount", String(files.length));
+      // No media files are uploaded.
+      body.set("mediaCount", "0");
+      body.set("photoLinks", "");
 
-      for (let i = 0; i < files.length; i++) {
-        submitBtn.textContent =
-          "Preparing media " + (i + 1) + " of " + files.length + "...";
-
-        const file = files[i];
-        const base64 = await readFileAsBase64(file);
-
-        body.append("media_" + i + "_name", file.name);
-        body.append("media_" + i + "_type", file.type);
-        body.append("media_" + i + "_base64", base64);
-      }
-
-      submitBtn.textContent = "Submitting property...";
-
-      // no-cors means the browser cannot read the Apps Script response.
+      // Send the property details to Google Apps Script.
+      // no-cors prevents reading the response, but allows
+      // a simple form POST to be sent cross-origin.
       await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
         body: body
       });
 
+      // IMPORTANT:
+      // With no-cors, the response is opaque. We cannot
+      // confirm that Google Sheets saved the property.
       showStatus(
-        "Your submission request has been sent.",
+        "Your submission request has been sent. Please verify that your property has been recorded.",
         "success"
       );
 
       form.reset();
-      mediaPreview.replaceChildren();
 
-      priceLabel.textContent = "Expected Sale Price (₹)";
-      priceHelp.textContent = "Enter the total expected sale price.";
+      // Restore the default sale-price label.
+      updatePriceLabel();
 
     } catch (error) {
-      console.error("Submission error:", error);
+      console.error("Property submission error:", error);
 
       showStatus(
-        "We couldn't prepare or send your submission. Please check your connection and try again.",
+        "We couldn't send your submission. Please check your internet connection and try again.",
         "error"
       );
+
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = "Submit Property Details →";
     }
   });
+}

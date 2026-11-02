@@ -1,4 +1,9 @@
 
+// ============================================
+// THE REAL TRACK — PROPERTY FORM
+// Text-only Google Sheets submission
+// ============================================
+
 const GOOGLE_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbw1SlNZlCKvQ8j4hE1HDD7xXXTbZRFraTcaztyqIha-dD95V3KR7okt889Z6eznSaQ/exec";
 
@@ -10,14 +15,17 @@ const listingType = document.getElementById("listingType");
 const priceLabel = document.getElementById("priceLabel");
 const priceHelp = document.getElementById("priceHelp");
 
-// Update the footer year.
 const yearElement = document.getElementById("year");
 
 if (yearElement) {
   yearElement.textContent = new Date().getFullYear();
 }
 
-// Update the price label depending on listing type.
+
+// ============================================
+// PRICE LABEL
+// ============================================
+
 function updatePriceLabel() {
   if (!listingType || !priceLabel || !priceHelp) return;
 
@@ -35,7 +43,11 @@ if (listingType) {
   updatePriceLabel();
 }
 
-// Display success or error messages.
+
+// ============================================
+// STATUS MESSAGE
+// ============================================
+
 function showStatus(message, type) {
   if (!statusBox) return;
 
@@ -44,10 +56,32 @@ function showStatus(message, type) {
   statusBox.style.display = "block";
 }
 
-// Submit property details to Google Apps Script.
+
+// ============================================
+// HIDDEN IFRAME FOR CROSS-ORIGIN FORM POST
+// ============================================
+
+let submissionFrame = document.getElementById("submissionFrame");
+
+if (!submissionFrame) {
+  submissionFrame = document.createElement("iframe");
+  submissionFrame.name = "submissionFrame";
+  submissionFrame.id = "submissionFrame";
+  submissionFrame.style.display = "none";
+  submissionFrame.title = "Property submission";
+  document.body.appendChild(submissionFrame);
+}
+
+
+// ============================================
+// FORM SUBMISSION
+// ============================================
+
 if (form) {
-  form.addEventListener("submit", async function (event) {
+  form.addEventListener("submit", function(event) {
     event.preventDefault();
+
+    if (!form.reportValidity()) return;
 
     if (
       !GOOGLE_SCRIPT_URL.startsWith(
@@ -55,59 +89,71 @@ if (form) {
       )
     ) {
       showStatus(
-        "Google Apps Script is not configured.",
+        "Google Apps Script URL is not configured correctly.",
         "error"
       );
       return;
     }
 
-    // Validate required HTML form fields.
-    if (!form.reportValidity()) return;
-
     submitBtn.disabled = true;
     submitBtn.textContent = "Submitting property...";
-    
+
     if (statusBox) {
       statusBox.style.display = "none";
     }
 
     try {
-      const formData = new FormData(form);
-      const body = new URLSearchParams();
+      // Create a temporary form so the existing form layout
+      // and page do not need to change.
+      const postForm = document.createElement("form");
 
-      // Send only text-based property details.
-      // Ignore file inputs and other non-string values.
+      postForm.method = "POST";
+      postForm.action = GOOGLE_SCRIPT_URL;
+      postForm.target = "submissionFrame";
+      postForm.style.display = "none";
+
+      // Copy only text fields. No media is uploaded.
+      const formData = new FormData(form);
+
       for (const [key, value] of formData.entries()) {
         if (value instanceof File) continue;
 
-        body.append(key, value);
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = value;
+
+        postForm.appendChild(input);
       }
 
-      // No media files are uploaded.
-      body.set("mediaCount", "0");
-      body.set("photoLinks", "");
+      // Explicitly keep media fields empty.
+      const photoLinks = document.createElement("input");
+      photoLinks.type = "hidden";
+      photoLinks.name = "photoLinks";
+      photoLinks.value = "";
+      postForm.appendChild(photoLinks);
 
-      // Send the property details to Google Apps Script.
-      // no-cors prevents reading the response, but allows
-      // a simple form POST to be sent cross-origin.
-      await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors",
-        body: body
-      });
+      document.body.appendChild(postForm);
 
-      // IMPORTANT:
-      // With no-cors, the response is opaque. We cannot
-      // confirm that Google Sheets saved the property.
+      // Submit to Apps Script in the hidden iframe.
+      postForm.submit();
+
       showStatus(
-        "Your submission request has been sent. Please verify that your property has been recorded.",
+        "Your submission has been sent. Please verify that it appears in the Property Leads spreadsheet before submitting again.",
         "success"
       );
 
-      form.reset();
+      // Do not clear the form immediately. This avoids losing
+      // the entered details if the backend rejects the request.
+      // The iframe cannot reliably expose the Apps Script JSON
+      // response because the destination is cross-origin.
 
-      // Restore the default sale-price label.
-      updatePriceLabel();
+      // Re-enable the button after a short delay.
+      window.setTimeout(function() {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit Property Details →";
+        postForm.remove();
+      }, 3000);
 
     } catch (error) {
       console.error("Property submission error:", error);
@@ -117,7 +163,6 @@ if (form) {
         "error"
       );
 
-    } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = "Submit Property Details →";
     }
